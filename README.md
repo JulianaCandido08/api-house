@@ -40,8 +40,8 @@ node server.js
 1. Abra o Arduino IDE e crie um novo sketch.
 2. Copie o código do Arduino da pasta arduino/ e cole no seu sketch.
 3. Certifique-se de que os pinos estão configurados corretamente:
-- LED no pino 23
-- Buzzer no pino 17
+   - LED no pino 23
+   - Buzzer no pino 17
 4. Faça o upload do código para a sua placa Arduino.
   
 ## Uso da Interface Web
@@ -50,7 +50,7 @@ node server.js
 3. Clique nos botões para ligar ou desligar os LEDs.
 
 ## Licença
-### Este projeto está licenciado sob a MIT License.
+#### Este projeto está licenciado sob a MIT License.
 
 ## Contribuições
-### Contribuições são Bem-Vindas!
+#### Contribuições são Bem-Vindas!
