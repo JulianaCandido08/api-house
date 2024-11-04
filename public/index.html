@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automação Residencial</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; background-color: #55889736; }
+        .led-container { margin-top: 20px; display: inline-block; border-radius: 20px; }
+        h1 { color: rgba(8, 45, 70, 0.733); font-size: 50px; margin: 80px 0; }
+        .led { margin: 10px; padding: 10px; border: 1px solid #ccc; display: inline-block; width: 150px; border-color: black; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); border-collapse: collapse; }
+        .led-status { margin: 10px 0; font-weight: bold; }
+        .ligada { color: green; }
+        .desligada { color: red; }
+        button { padding: 8px 16px; margin: 5px; cursor: pointer; display: inline-block; }
+    </style>
+</head>
+<body>
+
+    <h1>AUTOMAÇÃO RESIDENCIAL</h1>
+    <div id="leds" class="led-container">
+        <button class="led-button" onclick="toggleLED('Sala')">Sala</button>
+        <button class="led-button" onclick="toggleLED('Banheiro')">Banheiro</button>
+        <button class="led-button" onclick="toggleLED('Quarto 1')">Quarto 1</button>
+        <button class="led-button" onclick="toggleLED('Quarto 2')">Quarto 2</button>
+        <button class="led-button" onclick="toggleLED('Garagem')">Garagem</button>
+        <button class="led-button" onclick="toggleLED('Alarme')">Alarme</button>
+        <button class="led-button" onclick="toggleLED('Luzes Externas')">Luzes Externas</button>
+    </div>
+
+    <script>
+        const apiUrl = "http://localhost:3003/api/leds";
+
+        // Função para buscar e exibir o estado das LEDs
+        async function fetchLeds() {
+            try {
+                const response = await fetch(apiUrl);
+                const leds = await response.json();
+                renderLeds(leds);
+            } catch (error) {
+                console.error("Erro ao buscar LEDs:", error);
+            }
+        }
+
+        // Função para renderizar os LEDs na página
+        function renderLeds(leds) {
+            const ledsContainer = document.getElementById("leds");
+            ledsContainer.innerHTML = ""; // Limpar o conteúdo anterior
+
+            leds.forEach(led => {
+                const ledDiv = document.createElement("div");
+                ledDiv.classList.add("led");
+
+                const ledName = document.createElement("h3");
+                ledName.innerText = led.nome;
+                
+                const ledStatus = document.createElement("p");
+                ledStatus.classList.add("led-status");
+                ledStatus.innerText = led.status ? "Ligada" : "Desligada";
+                ledStatus.classList.add(led.status ? "ligada" : "desligada"); // Define a cor baseada no estado
+                ledStatus.id = `status-${led.nome}`;
+
+                const buttonOn = document.createElement("button");
+                buttonOn.innerText = "Ligar";
+                buttonOn.onclick = () => updateLedStatus(led.nome, 1);
+
+                const buttonOff = document.createElement("button");
+                buttonOff.innerText = "Desligar";
+                buttonOff.onclick = () => updateLedStatus(led.nome, 0);
+
+                ledDiv.appendChild(ledName);
+                ledDiv.appendChild(ledStatus);
+                ledDiv.appendChild(buttonOn);
+                ledDiv.appendChild(buttonOff);
+
+                ledsContainer.appendChild(ledDiv);
+            });
+        }
+
+        // Função para atualizar o estado de uma LED
+        async function updateLedStatus(nome, status) {
+            try {
+                const response = await fetch(`${apiUrl}/${nome}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ status })
+                });
+                
+                if (response.ok) {
+                    fetchLeds(); // Atualizar o estado após a mudança
+                } else {
+                    console.error("Erro ao atualizar LED:", await response.json());
+                }
+            } catch (error) {
+                console.error("Erro ao atualizar LED:", error);
+            }
+        }
+
+        // Carregar o estado inicial das LEDs ao abrir a página
+        fetchLeds();
+    </script>
+
+</body>
+</html>
