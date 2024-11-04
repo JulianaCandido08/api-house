@@ -11,7 +11,7 @@ Este projeto é uma aplicação de automação residencial que permite controlar
 ## Requisitos
 
 - **Node.js**: Para executar a API.
-- **Arduino IDE**: Para programar a placa Arduino.
+- **PlatformIO**: Para programar a placa Arduino.
 - **Bibliotecas do Arduino**:
   - `ArduinoJson`: Para manipulação de JSON no Arduino.
 
