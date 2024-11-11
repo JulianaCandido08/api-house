@@ -186,7 +186,7 @@ node server.js
 3. Clique nos botões para ligar ou desligar os LEDs.
 
 
-### 7. **Futuraas Implementações**
+### **Futuraas Implementações**
    Futuramente não terá só LEDs, será acrescentado mais sensores e este código será atualizado e toda sua interface. Com a finalidade de ter um app mobile. 
 
    ## Possíveis Melhorias
