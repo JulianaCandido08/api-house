@@ -1,13 +1,13 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include <ArduinoJson.h> 
+#include <ArduinoJson.h> // Inclua a biblioteca para JSON
 
-const char* ssid = "xxxxxx"; // Altere para o SSID da sua rede Wi-Fi
-const char* password = "xxxxxxx"; // Altere para a senha da sua rede Wi-Fi
+const char* ssid = "inovagil"; // Altere para o SSID da sua rede Wi-Fi
+const char* password = "1n0vag1l."; // Altere para a senha da sua rede Wi-Fi
 
-const char* serverName = "http://192.168.x.x:3003/api/leds"; // Use o IP do seu servidor
+const char* serverName = "http://192.168.1.138:3003/api/leds"; // Use o IP do seu servidor
 
-// Declaração das Leds 
+// Nomes das LEDs e seus respectivos pinos
 struct LED {
     String nome;
     int pin;
@@ -22,9 +22,9 @@ LED leds[] = {
     {"Luzes Externas", 16}
 };
 
-// Alarme
-const int buzzerPin = 17; 
-const int ledPin = 23;    
+// Defina os pinos para o buzzer e o LED adicional
+const int buzzerPin = 17; // Pino do buzzer
+const int ledPin = 23;    // Pino do LED adicional
 
 void setup() {
     Serial.begin(115200);
@@ -36,23 +36,24 @@ void setup() {
     }
     Serial.println("Conectado ao WiFi");
 
+    // Inicializa os pinos das LEDs
     for (int i = 0; i < sizeof(leds) / sizeof(leds[0]); i++) {
-        pinMode(leds[i].pin, OUTPUT); 
-        digitalWrite(leds[i].pin, LOW); // Começa todas as leds desligadas
+        pinMode(leds[i].pin, OUTPUT); // Configura cada pino como saída
+        digitalWrite(leds[i].pin, LOW); // Inicializa todas as LEDs como desligadas
     }
     
-    //Alarme
+    // Configura os pinos do buzzer e do LED adicional como saída
     pinMode(buzzerPin, OUTPUT);
-    digitalWrite(buzzerPin, LOW); // Começa com o buzzer desligado
+    digitalWrite(buzzerPin, LOW); // Inicializa o buzzer como desligado
     
     pinMode(ledPin, OUTPUT);
-    digitalWrite(ledPin, LOW); 
+    digitalWrite(ledPin, LOW); // Inicializa o LED adicional como desligado
 }
 
 void loop() {
     if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
-        http.begin(serverName); 
+        http.begin(serverName); // Monta a URL da API
 
         int httpResponseCode = http.GET(); // Faz a requisição GET
         if (httpResponseCode > 0) {
@@ -66,6 +67,7 @@ void loop() {
             DeserializationError error = deserializeJson(doc, payload);
             
             if (!error) {
+                // Itera sobre cada LED no JSON
                 for (int i = 0; i < doc.size(); i++) {
                     String ledNome = doc[i]["nome"].as<String>();
                     int ledStatus = doc[i]["status"].as<int>();
@@ -84,11 +86,11 @@ void loop() {
 
                     // Se o status for 1 e o nome do LED corresponder a "Alarme", liga o buzzer e o LED adicional
                     if (ledStatus == 1 && ledNome == "Alarme") {
-                        digitalWrite(buzzerPin, HIGH); 
-                        digitalWrite(ledPin, HIGH);    
-                        delay(6000);                   
-                        digitalWrite(buzzerPin, LOW);  
-                        digitalWrite(ledPin, LOW);     
+                        digitalWrite(buzzerPin, HIGH); // Liga o buzzer
+                        digitalWrite(ledPin, HIGH);    // Liga o LED adicional
+                        delay(6000);                   // Mantém ambos ligados por 1 segundo
+                        digitalWrite(buzzerPin, LOW);  // Desliga o buzzer
+                        digitalWrite(ledPin, LOW);     // Desliga o LED adicional
                     }
                 }
             } else {
@@ -103,5 +105,5 @@ void loop() {
     } else {
         Serial.println("Erro na conexão WiFi");
     }
-    delay(3000); 
+    delay(3000); // Espera 5 segundos antes de repetir
 }

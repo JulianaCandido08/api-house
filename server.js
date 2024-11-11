@@ -1,24 +1,43 @@
-const express = require("express");
-const bodyParser = require("body-parser");
-const cors = require("cors");
-const dotenv = require("dotenv");
-const path = require('path');
-
-dotenv.config();
+import express from "express";
+import bodyParser from "body-parser";
+import cors from "cors";
+import dotenv from "dotenv";
+import path from "path";
+import sqlite3 from "sqlite3";
+import { fileURLToPath } from "url";  // Importando fileURLToPath do módulo 'url'
+import { dirname } from "path";  // Importando dirname de 'path'
 
 const app = express();
-const port = process.env.PORT || 3003; 
+dotenv.config();
 
-// Dados de LEDs armazenados em memória
-let leds = [
-  { nome: "Sala", status: 0 }, // 0 para desligada, 1 para ligada
-  { nome: "Quarto 1", status: 0 },
-  { nome: "Quarto 2", status: 0 },
-  { nome: "Banheiro", status: 0 },
-  { nome: "Garagem", status: 0 },
-  { nome: "Alarme", status: 0 },
-  { nome: "Luzes Externas", status: 0 }
-];
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const port = process.env.PORT || 3003;
+
+// Conectar ao banco de dados SQLite
+const dbPath = process.env.DB_PATH || path.join(__dirname, "database.db");
+const db = new sqlite3.Database(dbPath, (err) => {
+  if (err) {
+    console.error("Erro ao abrir o banco de dados:", err.message);
+    process.exit(1); // Encerra o servidor caso haja erro na conexão com o banco
+  } else {
+    console.log("Banco de dados conectado com sucesso!");
+    db.run(
+      `CREATE TABLE IF NOT EXISTS leds (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT NOT NULL UNIQUE,
+        status INTEGER NOT NULL DEFAULT 0
+      );`,
+      (err) => {
+        if (err) {
+          console.error("Erro ao criar a tabela:", err.message);
+          process.exit(1); // Encerra o servidor caso a tabela não possa ser criada
+        }
+      }
+    );
+  }
+});
 
 // Middleware para monitorar requisições
 app.use((req, res, next) => {
@@ -27,97 +46,109 @@ app.use((req, res, next) => {
 });
 
 // Habilita CORS
-app.use(cors()); 
+app.use(cors());
 app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, 'public'))); // Para servir arquivos estáticos
+
+// Serve arquivos estáticos da pasta 'public'
+app.use(express.static(path.join(__dirname, "public")));
 
 // Rota para obter o estado das LEDs
 app.get("/api/leds", (req, res) => {
-  try {
-    res.json(leds); // Enviando os dados armazenados
-  } catch (error) {
-    console.error("Erro ao enviar dados das LEDs:", error);
-    res.status(500).json({ message: "Erro no servidor ao obter dados das LEDs." });
-  }
+  db.all("SELECT id, nome, status FROM leds", [], (err, rows) => {
+    if (err) {
+      console.error("Erro ao obter LEDs do banco:", err.message);
+      return res
+        .status(500)
+        .json({ message: "Erro no servidor ao obter dados das LEDs." });
+    }
+    res.json(rows);
+  });
 });
 
 // Rota para adicionar uma nova LED
 app.post("/api/leds", (req, res) => {
-  try {
-    const { nome, status } = req.body;
+  const { nome, status } = req.body;
 
-    // Validação dos dados recebidos
-    if (typeof nome !== "string" || nome.trim() === "") {
-      return res.status(400).json({ message: "Nome inválido fornecido." });
-    }
-    if (typeof status !== "number" || (status !== 0 && status !== 1)) {
-      return res.status(400).json({ message: "Status inválido fornecido. Deve ser 0 ou 1." });
-    }
+  if (typeof nome !== "string" || nome.trim() === "") {
+    return res.status(400).json({ message: "Nome inválido fornecido." });
+  }
+  if (typeof status !== "number" || (status !== 0 && status !== 1)) {
+    return res
+      .status(400)
+      .json({ message: "Status inválido fornecido. Deve ser 0 ou 1." });
+  }
 
-    // Verifica se a LED já existe
-    const ledExistente = leds.find((led) => led.nome === nome);
-    if (ledExistente) {
+  db.get("SELECT id FROM leds WHERE nome = ?", [nome], (err, row) => {
+    if (err) {
+      console.error("Erro ao verificar LED existente:", err.message);
+      return res
+        .status(500)
+        .json({ message: "Erro ao verificar a LED no banco." });
+    }
+    if (row) {
       return res.status(400).json({ message: "LED já existe." });
     }
 
-    // Adiciona a nova LED ao array
-    leds.push({ nome, status });
-    res.status(201).json({ message: "LED adicionada com sucesso!", led: { nome, status } });
-  } catch (error) {
-    console.error("Erro ao adicionar LED:", error);
-    res.status(500).json({ message: "Erro no servidor ao adicionar LED." });
-  }
+    db.run(
+      "INSERT INTO leds (nome, status) VALUES (?, ?)",
+      [nome, status],
+      function (err) {
+        if (err) {
+          console.error("Erro ao adicionar LED:", err.message);
+          return res
+            .status(500)
+            .json({ message: "Erro ao adicionar LED no banco." });
+        }
+        res.status(201).json({
+          message: "LED adicionada com sucesso!",
+          led: { id: this.lastID, nome, status },
+        });
+      }
+    );
+  });
 });
 
 // Rota para atualizar o estado de uma LED
 app.put("/api/leds/:nome", (req, res) => {
-  try {
-    const nome = req.params.nome;
-    const { status } = req.body;
+  const nome = req.params.nome;
+  const { status } = req.body;
 
-    // Validação do status recebido
-    if (typeof status !== "number" || (status !== 0 && status !== 1)) {
-      return res.status(400).json({ message: "Status inválido fornecido. Deve ser 0 ou 1." });
-    }
-
-    const led = leds.find((led) => led.nome === nome);
-    if (led) {
-      led.status = status; // Atualiza o estado da LED
-      res.json({
-        message: `LED ${nome} atualizada para ${status ? "ligada" : "desligada"}`,
-        led,
-      });
-    } else {
-      res.status(404).json({ message: "LED não encontrada." });
-    }
-  } catch (error) {
-    console.error(`Erro ao atualizar LED:`, error);
-    res.status(500).json({ message: "Erro no servidor ao atualizar LED." });
+  if (typeof status !== "number" || (status !== 0 && status !== 1)) {
+    return res
+      .status(400)
+      .json({ message: "Status inválido fornecido. Deve ser 0 ou 1." });
   }
-});
 
-// Rota para deletar uma LED
-app.delete('/api/leds/:nome', (req, res) => {
-  try {
-    const nome = req.params.nome; // Nome da LED a ser deletada
-
-    // Encontra o índice da LED na lista
-    const index = leds.findIndex(led => led.nome === nome);
-    if (index !== -1) {
-      leds.splice(index, 1); // Remove a LED do array
-      res.json({ message: `LED ${nome} deletada com sucesso.` });
-    } else {
-      res.status(404).json({ message: 'LED não encontrada.' });
+  // Verificar se a LED existe no banco
+  db.get("SELECT id FROM leds WHERE nome = ?", [nome], (err, row) => {
+    if (err) {
+      console.error("Erro ao verificar LED:", err.message);
+      return res.status(500).json({ message: "Erro ao verificar a LED no banco." });
     }
-  } catch (error) {
-    console.error('Erro ao deletar LED:', error);
-    res.status(500).json({ message: 'Erro no servidor ao deletar LED.' });
-  }
-});
+    if (!row) {
+      return res.status(404).json({ message: "LED não encontrada." });
+    }
 
-// Rota para lidar com rotas de API não encontradas
-app.all("/api/*", (req, res) => {
-  res.status(404).json({ message: "Rota de API não encontrada." });
+    // Atualizar o estado da LED
+    db.run(
+      "UPDATE leds SET status = ? WHERE nome = ?",
+      [status, nome],
+      function (err) {
+        if (err) {
+          console.error("Erro ao atualizar LED:", err.message);
+          return res
+            .status(500)
+            .json({ message: "Erro ao atualizar LED no banco." });
+        }
+        res.json({
+          message: `LED ${nome} atualizada para ${
+            status ? "ligada" : "desligada"
+          }`,
+          led: { nome, status },
+        });
+      }
+    );
+  });
 });
 
 // Iniciar servidor
